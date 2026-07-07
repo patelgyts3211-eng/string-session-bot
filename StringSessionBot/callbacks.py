@@ -6,71 +6,98 @@ from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBu
 from StringSessionBot.generate import generate_session
 
 
-# Callbacks
+ERROR_MESSAGE = (
+    "⚠️ ᴏᴏᴘs! ᴀɴ ᴇxᴄᴇᴘᴛɪᴏɴ ᴏᴄᴄᴜʀʀᴇᴅ!\n\n"
+    "**ᴇʀʀᴏʀ**: {}\n\n"
+    "ᴘʟᴇᴀsᴇ ᴄᴏɴᴛᴀᴄᴛ sᴜᴘᴘᴏʀᴛ."
+)
+
+
 @Client.on_callback_query()
 async def _callbacks(bot: Client, callback_query: CallbackQuery):
-    user = await bot.get_me()
-    # user_id = callback_query.from_user.id
-    mention = user["mention"]
-    query = callback_query.data.lower()
-    if query.startswith("home"):
+
+    try:
+        query = callback_query.data.lower()
+
+        bot_info = await bot.get_me()
+        mention = bot_info.mention
+
+        chat_id = callback_query.message.chat.id
+        message_id = callback_query.message.id
+
+        # ================= HOME =================
         if query == "home":
-            chat_id = callback_query.from_user.id
-            message_id = callback_query.message.message_id
             await bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message_id,
-                text=Data.START.format(callback_query.from_user.mention, mention),
-                reply_markup=InlineKeyboardMarkup(Data.buttons),
+                text=Data.START.format(
+                    callback_query.from_user.mention,
+                    mention
+                ),
+                reply_markup=Data.buttons,
             )
-    elif query == "about":
-        chat_id = callback_query.from_user.id
-        message_id = callback_query.message.message_id
-        await bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=message_id,
-            text=Data.ABOUT,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(Data.home_buttons),
-        )
-    elif query == "help":
-        chat_id = callback_query.from_user.id
-        message_id = callback_query.message.message_id
-        await bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=message_id,
-            text="**ʜᴇʀᴇ ɪs ʜᴏᴡ ᴛᴏ ᴜsᴇ ᴍᴇ**\n" + Data.HELP,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(Data.home_buttons),
-        )
-    elif query == "generate":
-        await callback_query.message.reply(
-            "ᴘʟᴇᴀsᴇ ᴄʜᴏᴏsᴇ ᴛʜᴇ ᴘʏᴛʜᴏɴ ʟɪʙʀᴀʀʏ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ sᴛʀɪɴɢ sᴇssɪᴏɴ ꜰᴏʀ",
-            reply_markup=InlineKeyboardMarkup(
-                [
+
+        # ================= ABOUT =================
+        elif query == "about":
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=Data.ABOUT,
+                disable_web_page_preview=True,
+                reply_markup=Data.home_buttons,
+            )
+
+        # ================= HELP =================
+        elif query == "help":
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text="**ʜᴇʀᴇ ɪs ʜᴏᴡ ᴛᴏ ᴜsᴇ ᴍᴇ**\n\n" + Data.HELP,
+                disable_web_page_preview=True,
+                reply_markup=Data.home_buttons,
+            )
+
+        # ================= GENERATE =================
+        elif query == "generate":
+            await callback_query.message.reply(
+                "ᴘʟᴇᴀsᴇ ᴄʜᴏᴏsᴇ ᴛʜᴇ ʟɪʙʀᴀʀʏ",
+                reply_markup=InlineKeyboardMarkup(
                     [
-                        InlineKeyboardButton("🧑‍💻 ᴘʏʀᴏɢʀᴀᴍ", callback_data="pyrogram"),
-                        InlineKeyboardButton("ᴛᴇʟᴇᴛʜᴏɴ 🧑‍💻", callback_data="telethon"),
+                        [
+                            InlineKeyboardButton(
+                                "🧑‍💻 ᴘʏʀᴏɢʀᴀᴍ",
+                                callback_data="pyrogram"
+                            ),
+                            InlineKeyboardButton(
+                                "ᴛᴇʟᴇᴛʜᴏɴ 🧑‍💻",
+                                callback_data="telethon"
+                            ),
+                        ]
                     ]
-                ]
-            ),
-        )
-    elif query in ["pyrogram", "telethon"]:
-        await callback_query.answer()
+                ),
+            )
+
+        # ================= SESSION GENERATION =================
+        elif query in ["pyrogram", "telethon"]:
+            await callback_query.answer("Generating session...")
+
+            try:
+                if query == "pyrogram":
+                    await generate_session(bot, callback_query.message)
+                else:
+                    await generate_session(bot, callback_query.message, telethon=True)
+
+            except Exception as e:
+                print(traceback.format_exc())
+                await callback_query.message.reply(
+                    ERROR_MESSAGE.format(str(e))
+                )
+
+    except Exception as e:
+        print(traceback.format_exc())
         try:
-            if query == "pyrogram":
-                await generate_session(bot, callback_query.message)
-            else:
-                await generate_session(bot, callback_query.message, telethon=True)
-        except Exception as e:
-            print(traceback.format_exc())
-            print(e)
-            await callback_query.message.reply(ERROR_MESSAGE.format(str(e)))
-
-
-ERROR_MESSAGE = (
-    "ᴏᴏᴘs! ᴀɴ ᴇxᴄᴇᴘᴛɪᴏɴ ᴏᴄᴄᴜʀᴇᴅ! \n\n**ᴇʀʀᴏʀ** : {} "
-    "\n\nᴘʟᴇᴀsᴇ ᴠɪsɪᴛ @Alexa_BotUpdates ɪꜰ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴅᴏᴇsɴ'ᴛ ᴄᴏɴᴛᴀɪɴ ᴀɴʏ "
-    "sᴇɴsɪᴛɪᴠᴇ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ ᴀɴᴅ ʏᴏᴜ ɪꜰ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴘᴏʀᴛ ᴛʜɪs ᴀs "
-    "ᴛʜɪs ᴇʀʀᴏʀ ᴍᴇssᴀɢᴇ ɪs ɴᴏᴛ ʙᴇɪɴɢ ʟᴏɢɢᴇᴅ ʙʏ ᴜs!"
-)
+            await callback_query.message.reply(
+                ERROR_MESSAGE.format(str(e))
+            )
+        except:
+            pass

