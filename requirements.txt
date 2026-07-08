@@ -1,10 +1,10 @@
 python-dotenv>=1.0.1
-SQLAlchemy>=2.0
+SQLAlchemy>=2.0,<3.0
 Pyrogram==2.0.106
 pyromod==3.1.6
 TgCrypto==1.2.5
 Flask==3.0.3
-Werkzeug>=3.0.0
+Werkzeug==3.0.3
 psycopg2-binary
 Telethon==1.41.2
 pickledb<1
