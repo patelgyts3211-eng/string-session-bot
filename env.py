@@ -7,31 +7,31 @@ API_ID = os.getenv("API_ID", "").strip()
 API_HASH = os.getenv("API_HASH", "").strip()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-MUST_JOIN = os.getenv("MUST_JOIN", "")
+MUST_JOIN = os.getenv("MUST_JOIN", "").strip()
 
 # Logger Group ID (Example: -1001234567890)
 LOGGER_GROUP = os.getenv("LOGGER_GROUP", "").strip()
 
 if not API_ID:
-    print("No API_ID found. Exiting...")
+    print("❌ No API_ID found. Exiting...")
     raise SystemExit
 
 if not API_HASH:
-    print("No API_HASH found. Exiting...")
+    print("❌ No API_HASH found. Exiting...")
     raise SystemExit
 
 if not BOT_TOKEN:
-    print("No BOT_TOKEN found. Exiting...")
+    print("❌ No BOT_TOKEN found. Exiting...")
     raise SystemExit
 
 if not DATABASE_URL:
-    print("No DATABASE_URL found. Exiting...")
+    print("❌ No DATABASE_URL found. Exiting...")
     raise SystemExit
 
 try:
     API_ID = int(API_ID)
 except ValueError:
-    print("API_ID is not a valid integer. Exiting...")
+    print("❌ API_ID is not a valid integer. Exiting...")
     raise SystemExit
 
 # Convert LOGGER_GROUP to int if provided
@@ -39,10 +39,18 @@ if LOGGER_GROUP:
     try:
         LOGGER_GROUP = int(LOGGER_GROUP)
     except ValueError:
-        print("LOGGER_GROUP is not a valid integer. Exiting...")
+        print("❌ LOGGER_GROUP is not a valid integer. Exiting...")
         raise SystemExit
 else:
     LOGGER_GROUP = None
 
 if "postgres" in DATABASE_URL and "postgresql" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgres", "postgresql")
+
+# ================= DEBUG =================
+print("========== ENV LOADED ==========")
+print(f"API_ID        : {API_ID}")
+print(f"BOT_TOKEN     : {'Loaded' if BOT_TOKEN else 'Missing'}")
+print(f"DATABASE_URL  : {'Loaded' if DATABASE_URL else 'Missing'}")
+print(f"LOGGER_GROUP  : {LOGGER_GROUP}")
+print("================================")
