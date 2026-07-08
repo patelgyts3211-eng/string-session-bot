@@ -1,6 +1,12 @@
-FROM python:3.9-slim-buster
+FROM python:3.11-slim
+
 WORKDIR /app
-COPY . /app
-RUN pip3 install --upgrade pip
-RUN pip3 install -U -r requirements.txt
-CMD ["python3", "bot.py"]
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["python", "bot.py"]
